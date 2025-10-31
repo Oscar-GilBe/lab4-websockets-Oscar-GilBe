@@ -27,11 +27,13 @@ data class ChatMessage(
  * @property content Respuesta generada por Eliza
  * @property sender Identificador del remitente (siempre "Eliza")
  * @property type Tipo de mensaje (CHAT para conversación normal, SYSTEM para mensajes del sistema)
+ * @property originalSessionId ID de sesión del cliente que envió el mensaje original (para Pub/Sub)
  */
 data class ChatResponse(
     val content: String,
     val sender: String = "Eliza",
     val type: MessageType = MessageType.CHAT,
+    val originalSessionId: String? = null,
 )
 
 /**
@@ -49,7 +51,7 @@ enum class MessageType {
  * Controlador STOMP para manejar la comunicación con el chatbot Eliza.
  *
  * Este controlador procesa mensajes entrantes del cliente y envía respuestas
- * generadas por Eliza a través del protocolo STOMP.
+ * generadas por Eliza a través del protocolo STOMP. Patrón publish-subscribe para mensajes
  *
  * @property eliza Instancia del chatbot Eliza inyectada por Spring
  */
@@ -91,6 +93,7 @@ class StompElizaController(
                 content = "Alright then, goodbye!",
                 sender = "Eliza",
                 type = MessageType.SYSTEM,
+                originalSessionId = sessionId,
             )
         }
 
@@ -102,6 +105,7 @@ class StompElizaController(
             content = response,
             sender = "Eliza",
             type = MessageType.CHAT,
+            originalSessionId = sessionId,
         )
     }
 
@@ -124,6 +128,7 @@ class StompElizaController(
             content = "The doctor is in. What's on your mind?",
             sender = "Eliza",
             type = MessageType.SYSTEM,
+            originalSessionId = sessionId,
         )
     }
 }
