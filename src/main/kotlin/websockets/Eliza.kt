@@ -1,5 +1,6 @@
 package websockets
 
+import org.springframework.stereotype.Component
 import java.util.Random
 import java.util.Scanner
 
@@ -9,7 +10,10 @@ import java.util.Scanner
  *
  * Adapted from https://code.google.com/p/simple-semantic-desktop/source/browse/trunk/Progs2/Eliza/eliza.java
  * created by Akshat Singhal
+ *
+ * @Component mark this class as a Spring bean for dependency injection
  */
+@Component
 class Eliza {
     private var responses: Map<String, List<String>>
     private var keywords: Set<String>
