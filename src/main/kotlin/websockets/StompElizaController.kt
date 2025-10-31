@@ -8,6 +8,8 @@ import org.springframework.stereotype.Controller
 import java.util.Locale
 import java.util.Scanner
 
+private val logger = KotlinLogging.logger {}
+
 /**
  * Clase de datos que representa un mensaje enviado por el cliente.
  *
@@ -34,6 +36,9 @@ data class ChatResponse(
 
 /**
  * Enumeración de tipos de mensaje.
+ *
+ * - CHAT: Mensaje de conversación normal
+ * - SYSTEM: Mensaje del sistema (conexión, desconexión, etc.)
  */
 enum class MessageType {
     CHAT,
@@ -42,6 +47,10 @@ enum class MessageType {
 
 /**
  * Controlador STOMP para manejar la comunicación con el chatbot Eliza.
+ *
+ * Este controlador procesa mensajes entrantes del cliente y envía respuestas
+ * generadas por Eliza a través del protocolo STOMP.
+ *
  * @property eliza Instancia del chatbot Eliza inyectada por Spring
  */
 @Controller
@@ -50,6 +59,16 @@ class StompElizaController(
 ) {
     /**
      * Maneja mensajes enviados al endpoint /app/chat.
+     *
+     * Los clientes envían mensajes a /app/chat, este método los procesa
+     * y envía la respuesta a /topic/messages donde todos los suscriptores
+     * la recibirán.
+     *
+     * El flujo es el siguiente:
+     * 1. Cliente envía mensaje a /app/chat
+     * 2. Este método recibe el mensaje y lo procesa con Eliza
+     * 3. La respuesta se envía automáticamente a /topic/messages
+     * 4. Todos los clientes suscritos a /topic/messages reciben la respuesta
      *
      * @param message Mensaje enviado por el cliente
      * @param headerAccessor Acceso a los headers del mensaje STOMP (para obtener sessionId, etc.)
@@ -62,10 +81,12 @@ class StompElizaController(
         headerAccessor: SimpMessageHeaderAccessor,
     ): ChatResponse {
         val sessionId = headerAccessor.sessionId ?: "unknown"
+        logger.info { "STOMP Message received from session $sessionId: ${message.content}" }
 
         // Verifica si el usuario se está despidiendo
         val currentLine = Scanner(message.content.lowercase(Locale.getDefault()))
         if (currentLine.findInLine("bye") != null) {
+            logger.info { "User said goodbye in session $sessionId" }
             return ChatResponse(
                 content = "Alright then, goodbye!",
                 sender = "Eliza",
@@ -75,6 +96,7 @@ class StompElizaController(
 
         // Genera respuesta de Eliza
         val response = eliza.respond(Scanner(message.content))
+        logger.info { "STOMP Response sent to session $sessionId: $response" }
 
         return ChatResponse(
             content = response,
@@ -96,6 +118,7 @@ class StompElizaController(
     @SendTo("/topic/messages")
     fun handleGreeting(headerAccessor: SimpMessageHeaderAccessor): ChatResponse {
         val sessionId = headerAccessor.sessionId ?: "unknown"
+        logger.info { "STOMP Greeting request from session $sessionId" }
 
         return ChatResponse(
             content = "The doctor is in. What's on your mind?",
