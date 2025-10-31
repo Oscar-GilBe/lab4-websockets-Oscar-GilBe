@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Eliza STOMP Client</title>
+    <link rel="stylesheet" href="css/stomp-client.css" />
+  </head>
+  <body>
+    <div class="container">
+      <div class="header">
+        <h1>Eliza - STOMP Client</h1>
+        <p>
+          Habla con el doctor Eliza usando el protocolo STOMP sobre WebSocket
+        </p>
+      </div>
+
+      <div class="connection-status">
+        <div class="status-indicator">
+          <div class="status-dot" id="statusDot"></div>
+          <span id="statusText">Desconectado</span>
+        </div>
+        <div class="session-info" id="sessionInfo" style="display: none">
+          <strong>Session ID:</strong> <span id="sessionId">N/A</span>
+        </div>
+        <div class="button-group">
+          <button id="connectButton" onclick="connect()">Conectar</button>
+          <button id="disconnectButton" onclick="disconnect()" disabled>
+            Desconectar
+          </button>
+        </div>
+      </div>
+
+      <div class="chat-area" id="chatArea">
+        <div class="message system">
+          <div class="message-content">
+            Bienvenido al cliente STOMP de Eliza. Haz clic en "Conectar" para
+            comenzar.
+          </div>
+        </div>
+      </div>
+
+      <div class="input-area">
+        <div class="input-group">
+          <input
+            type="text"
+            id="messageInput"
+            placeholder="Escribe tu mensaje aquí..."
+            disabled
+            onkeypress="if(event.key === 'Enter') sendMessage()"
+          />
+          <button id="sendButton" onclick="sendMessage()" disabled>
+            Enviar
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Librería STOMP.js desde CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/@stomp/stompjs@7.0.0/bundles/stomp.umd.min.js"></script>
+
+    <!-- JavaScript de la aplicación -->
+    <script src="js/stomp-client.js"></script>
+  </body>
+</html>
