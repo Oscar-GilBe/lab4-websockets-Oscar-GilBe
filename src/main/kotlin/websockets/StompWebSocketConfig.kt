@@ -7,15 +7,17 @@ import org.springframework.web.socket.config.annotation.StompEndpointRegistry
 import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerConfigurer
 
 /**
- * Configuración de WebSocket con soporte para el protocolo STOMP.
+ * Configuración de WebSocket con soporte para el protocolo STOMP y SockJS fallback.
  *
  * Esta clase habilita el uso de STOMP (Simple Text Oriented Messaging Protocol)
- * sobre WebSocket, siguiendo la configuración estándar de Spring Framework.
+ * sobre WebSocket con fallback automático a HTTP polling cuando WebSocket no está disponible.
  *
  * @EnableWebSocketMessageBroker - Activa el soporte para mensajería WebSocket
  * con un broker de mensajes basado en STOMP.
  *
- * Documentación: https://docs.spring.io/spring-framework/reference/web/websocket/stomp/enable.html
+ * Documentación oficial de Spring Framework:
+ * - STOMP: https://docs.spring.io/spring-framework/reference/web/websocket/stomp/enable.html
+ * - SockJS Fallback: https://docs.spring.io/spring-framework/reference/web/websocket/fallback.html
  */
 @Configuration
 @EnableWebSocketMessageBroker
@@ -45,8 +47,33 @@ class StompWebSocketConfig : WebSocketMessageBrokerConfigurer {
 
     /**
      * Registra los endpoints STOMP que los clientes usarán para conectarse.
-     * - /ws-stomp: Endpoint para conexiones WebSocket directas con STOMP
-     * - setAllowedOriginPatterns("*"): Permite conexiones desde cualquier origen (útil para desarrollo)
+     *
+     * Cconfiguramos dos endpoints principales:
+     * 1. /ws-stomp: Endpoint para conexiones WebSocket directas con STOMP (sin fallback)
+     * 2. /ws-stomp-sockjs: Endpoint con soporte SockJS para compatibilidad y fallback
+     *
+     * SockJS es una librería JavaScript que proporciona una API similar a WebSocket
+     * pero con mecanismos de fallback automático cuando WebSocket no está disponible.
+     * Esto es crucial en redes corporativas donde proxies restrictivos pueden bloquear
+     * WebSocket.
+     *
+     * Transportes de fallback de SockJS (en orden de preferencia):
+     * 1. WebSocket: Protocolo nativo, bidireccional, baja latencia (preferido)
+     * 2. HTTP Streaming (xhr-streaming): Mantiene conexión HTTP abierta
+     * 3. HTTP Long Polling (xhr-polling): Funciona en cualquier navegador/red
+     *
+     * Flujo de selección de transporte:
+     * - Cliente envía GET /info para obtener información del servidor
+     * - Cliente intenta WebSocket primero
+     * - Si WebSocket falla (bloqueado por proxy/firewall), intenta HTTP Streaming
+     * - Si HTTP Streaming falla, usa HTTP Long Polling como último recurso
+     *
+     * SockJS envía heartbeats cada 25 segundos (por defecto) para evitar que proxies
+     * cierren la conexión por inactividad.
+     *
+     * Documentación oficial:
+     * - SockJS: https://docs.spring.io/spring-framework/reference/web/websocket/fallback.html
+     * - Enabling SockJS: https://docs.spring.io/spring-framework/reference/web/websocket/fallback.html#websocket-fallback-sockjs-enable
      *
      * En producción, se debe restringir setAllowedOriginPatterns a dominios específicos
      * para evitar problemas de seguridad CORS.
@@ -54,9 +81,18 @@ class StompWebSocketConfig : WebSocketMessageBrokerConfigurer {
      * @param registry Registro de endpoints donde se configuran los puntos de conexión
      */
     override fun registerStompEndpoints(registry: StompEndpointRegistry) {
-        // Registra el endpoint /ws-stomp para conexiones WebSocket con STOMP
+        // Endpoint 1: WebSocket stomp puro sin fallback
+        // Recomendado para aplicaciones modernas con soporte garantizado de WebSocket
         registry
             .addEndpoint("/ws-stomp")
+            .setAllowedOriginPatterns("*") // Permite conexiones desde cualquier origen (solo desarrollo)
+
+        // Endpoint 2: WebSocket con SockJS fallback
+        // Recomendado para máxima compatibilidad y fiabilidad en diferentes redes
+        registry
+            .addEndpoint("/ws-stomp-sockjs")
             .setAllowedOriginPatterns("*") // Permite todas las conexiones (solo desarrollo)
+            .withSockJS() // Habilita el fallback SockJS con configuración por defecto
+            .setStreamBytesLimit(512 * 1024) // Límite de bytes para streaming
     }
 }
