@@ -1,6 +1,7 @@
 package websockets
 
 import org.springframework.context.annotation.Configuration
+import org.springframework.messaging.simp.config.ChannelRegistration // para configurar interceptores de canal
 import org.springframework.messaging.simp.config.MessageBrokerRegistry
 import org.springframework.web.socket.config.annotation.EnableWebSocketMessageBroker
 import org.springframework.web.socket.config.annotation.StompEndpointRegistry
@@ -15,13 +16,21 @@ import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerCo
  * @EnableWebSocketMessageBroker - Activa el soporte para mensajería WebSocket
  * con un broker de mensajes basado en STOMP.
  *
+ * Incluye logging detallado de conexiones y transportes mediante interceptores personalizados.
+ *
  * Documentación oficial de Spring Framework:
  * - STOMP: https://docs.spring.io/spring-framework/reference/web/websocket/stomp/enable.html
  * - SockJS Fallback: https://docs.spring.io/spring-framework/reference/web/websocket/fallback.html
+ *
+ * JavaDoc de la interfaz WebSocketMessageBrokerConfigurer:
+ * https://docs.enterprise.spring.io/spring-framework/docs/6.0.24/javadoc-api/org/springframework/web/socket/config/annotation/WebSocketMessageBrokerConfigurer.html
  */
 @Configuration
 @EnableWebSocketMessageBroker
-class StompWebSocketConfig : WebSocketMessageBrokerConfigurer {
+class StompWebSocketConfig(
+    private val webSocketConnectionLogger: WebSocketConnectionLogger,
+    private val stompConnectionLogger: StompConnectionLogger, // Interceptor para loguear eventos STOMP
+) : WebSocketMessageBrokerConfigurer {
     /**
      * Configura el broker de mensajes para manejar las suscripciones y el enrutamiento de mensajes.
      *
@@ -86,13 +95,27 @@ class StompWebSocketConfig : WebSocketMessageBrokerConfigurer {
         registry
             .addEndpoint("/ws-stomp")
             .setAllowedOriginPatterns("*") // Permite conexiones desde cualquier origen (solo desarrollo)
+            .addInterceptors(webSocketConnectionLogger) // Registra conexiones WebSocket
 
         // Endpoint 2: WebSocket con SockJS fallback
         // Recomendado para máxima compatibilidad y fiabilidad en diferentes redes
         registry
             .addEndpoint("/ws-stomp-sockjs")
             .setAllowedOriginPatterns("*") // Permite todas las conexiones (solo desarrollo)
+            .addInterceptors(webSocketConnectionLogger) // Registra conexiones con detección de transporte
             .withSockJS() // Habilita el fallback SockJS con configuración por defecto
             .setStreamBytesLimit(512 * 1024) // Límite de bytes para streaming
+    }
+
+    /**
+     * Configura interceptores para el canal de mensajes entrantes (inbound).
+     *
+     * Esto permite registrar eventos STOMP como CONNECT, SUBSCRIBE, SEND, DISCONNECT
+     * y proporcionar estadísticas detalladas sobre las sesiones activas.
+     *
+     * @param registration Registro del canal donde se añaden los interceptores
+     */
+    override fun configureClientInboundChannel(registration: ChannelRegistration) {
+        registration.interceptors(stompConnectionLogger)
     }
 }
