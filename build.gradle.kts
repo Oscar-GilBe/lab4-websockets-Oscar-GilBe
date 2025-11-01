@@ -28,3 +28,24 @@ dependencies {
 tasks.withType<Test> {
     useJUnitPlatform()
 }
+
+// Configuración para Spring Boot. Clase principal.
+springBoot {
+    mainClass.set("websockets.ElizaServerKt")
+}
+
+// Tarea para ejecutar el cliente STOMP Kotlin
+tasks.register<JavaExec>("runStompClientKotlin") {
+    group = "application"
+    description = "Ejecuta el cliente STOMP en Kotlin"
+    classpath = sourceSets["main"].runtimeClasspath
+    mainClass.set("websockets.StompClientKotlinKt") // Clase principal del cliente STOMP Kotlin
+    standardInput = System.`in` // Permite entrada desde consola
+
+    // Fuerza el uso de Java 21
+    javaLauncher.set(
+        javaToolchains.launcherFor {
+            languageVersion.set(JavaLanguageVersion.of(21))
+        },
+    )
+}
