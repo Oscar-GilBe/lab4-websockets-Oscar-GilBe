@@ -60,7 +60,7 @@ tasks.register<JavaExec>("runSockJsStompClient") {
     group = "application"
     description = "Ejecuta el cliente STOMP con SockJS y fallback automatico"
     classpath = sourceSets["main"].runtimeClasspath
-    mainClass.set("websockets.SockJsStompClientKt")  // Clase principal del cliente STOMP con SockJS
+    mainClass.set("websockets.SockJsStompClientKt") // Clase principal del cliente STOMP con SockJS
     standardInput = System.`in` // Permite entrada desde consola
 
     // Fuerza el uso de Java 21
