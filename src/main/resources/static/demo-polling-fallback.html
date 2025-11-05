@@ -1,0 +1,643 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Demo Fallback - Polling Forzado</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        min-height: 100vh;
+        padding: 20px;
+      }
+
+      .container {
+        background: white;
+        border-radius: 20px;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        width: 100%;
+        max-width: 900px;
+        display: flex;
+        flex-direction: column;
+        height: 90vh;
+        max-height: 800px;
+      }
+
+      .header {
+        background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+        color: white;
+        padding: 20px;
+        border-radius: 20px 20px 0 0;
+        text-align: center;
+      }
+
+      .header h1 {
+        font-size: 24px;
+        margin-bottom: 5px;
+      }
+
+      .header p {
+        font-size: 14px;
+        opacity: 0.9;
+      }
+
+      .warning-banner {
+        background: #d1e7ff;
+        border: 2px solid #2a5298;
+        color: #1e3c72;
+        padding: 15px 20px;
+        font-size: 13px;
+        line-height: 1.6;
+      }
+
+      .warning-banner strong {
+        color: #1e3c72;
+        font-weight: bold;
+        display: block;
+        margin-bottom: 5px;
+      }
+
+      .connection-status {
+        padding: 10px 20px;
+        background: #f8f9fa;
+        border-bottom: 1px solid #dee2e6;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 10px;
+      }
+
+      .status-row {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+        flex-wrap: wrap;
+      }
+
+      .status-indicator {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 14px;
+      }
+
+      .transport-info {
+        font-size: 12px;
+        color: #1e3c72;
+        background: #d1e7ff;
+        padding: 5px 10px;
+        border-radius: 12px;
+        border: 2px solid #2a5298;
+        font-family: monospace;
+        font-weight: bold;
+      }
+
+      .transport-info strong {
+        color: #1e3c72;
+      }
+
+      .status-dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background: #dc3545;
+      }
+
+      .status-dot.connected {
+        background: #28a745;
+        animation: pulse 2s infinite;
+      }
+
+      @keyframes pulse {
+        0%,
+        100% {
+          opacity: 1;
+        }
+        50% {
+          opacity: 0.5;
+        }
+      }
+
+      .chat-area {
+        flex: 1;
+        overflow-y: auto;
+        padding: 20px;
+        background: #f8f9fa;
+      }
+
+      .message {
+        margin-bottom: 15px;
+        display: flex;
+        flex-direction: column;
+      }
+
+      .message.system {
+        align-items: center;
+      }
+
+      .message-content {
+        max-width: 90%;
+        padding: 12px 16px;
+        border-radius: 18px;
+        word-wrap: break-word;
+        line-height: 1.4;
+      }
+
+      .message.system .message-content {
+        background: #d1e7ff;
+        color: #1e3c72;
+        border: 2px solid #2a5298;
+        max-width: 100%;
+        text-align: center;
+        font-size: 14px;
+      }
+
+      .message.eliza {
+        align-items: flex-start;
+      }
+
+      .message.user {
+        align-items: flex-end;
+      }
+
+      .message.eliza .message-content {
+        background: white;
+        color: #333;
+        border: 2px solid #dee2e6;
+        max-width: 70%;
+        text-align: left;
+      }
+
+      .message.user .message-content {
+        background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+        color: white;
+        max-width: 70%;
+        text-align: left;
+      }
+
+      .message-sender {
+        font-size: 12px;
+        font-weight: bold;
+        margin-bottom: 5px;
+        color: #6c757d;
+      }
+
+      .input-area {
+        padding: 20px;
+        background: white;
+        border-radius: 0 0 20px 20px;
+        border-top: 1px solid #dee2e6;
+      }
+
+      .input-group {
+        display: flex;
+        gap: 10px;
+        margin-bottom: 10px;
+      }
+
+      #messageInput {
+        flex: 1;
+        padding: 12px 16px;
+        border: 2px solid #dee2e6;
+        border-radius: 25px;
+        font-size: 14px;
+        outline: none;
+        transition: border-color 0.3s;
+      }
+
+      #messageInput:focus {
+        border-color: #2a5298;
+      }
+
+      #messageInput:disabled {
+        background: #e9ecef;
+        cursor: not-allowed;
+      }
+
+      button {
+        padding: 12px 24px;
+        border: none;
+        border-radius: 25px;
+        font-size: 14px;
+        font-weight: bold;
+        cursor: pointer;
+        transition: all 0.3s;
+        outline: none;
+      }
+
+      #sendButton {
+        background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+        color: white;
+        padding: 12px 32px;
+      }
+
+      #sendButton:hover:not(:disabled) {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(42, 82, 152, 0.4);
+      }
+
+      #sendButton:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+
+      #connectButton {
+        background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+        color: white;
+        width: 100%;
+      }
+
+      #connectButton:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(42, 82, 152, 0.4);
+      }
+
+      #disconnectButton {
+        background: #dc3545;
+        color: white;
+        width: 100%;
+        margin-top: 10px;
+      }
+
+      #disconnectButton:hover {
+        background: #c82333;
+      }
+
+      .chat-area::-webkit-scrollbar {
+        width: 8px;
+      }
+
+      .chat-area::-webkit-scrollbar-track {
+        background: #f1f1f1;
+      }
+
+      .chat-area::-webkit-scrollbar-thumb {
+        background: #888;
+        border-radius: 4px;
+      }
+
+      .chat-area::-webkit-scrollbar-thumb:hover {
+        background: #555;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="header">
+        <h1>⚠️ Demo Fallback - HTTP Polling Forzado</h1>
+        <p>Simulación de red que bloquea WebSocket</p>
+      </div>
+
+      <div class="warning-banner">
+        <strong>Modo Demostración:</strong>
+        Esta página fuerza el uso de HTTP Long Polling deshabilitando WebSocket.
+        Esto simula un escenario real donde un firewall o proxy corporativo
+        bloquea conexiones WebSocket. SockJS detectará que WebSocket no está
+        disponible y automáticamente usará HTTP Long Polling como alternativa.
+      </div>
+
+      <div class="connection-status">
+        <div class="status-row">
+          <div class="status-indicator">
+            <div class="status-dot" id="statusDot"></div>
+            <span id="statusText">Desconectado</span>
+          </div>
+          <div class="transport-info" id="transportInfo" style="display: none">
+            <strong>🔄 Transport:</strong> <span id="transportType">N/A</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="chat-area" id="chatArea">
+        <div class="message system">
+          <div class="message-content">
+            🔬 <strong>Modo Demostración Activado</strong><br />
+            WebSocket está deshabilitado intencionalmente.<br />
+            SockJS usará HTTP Long Polling como fallback.<br /><br />
+            Haz clic en "Conectar" para ver el fallback en acción.
+          </div>
+        </div>
+      </div>
+
+      <div class="input-area">
+        <div class="input-group" id="chatInputGroup" style="display: none">
+          <input
+            type="text"
+            id="messageInput"
+            placeholder="Escribe tu mensaje a Eliza usando HTTP Polling..."
+            disabled
+            onkeypress="if(event.key === 'Enter') sendMessage()"
+          />
+          <button id="sendButton" onclick="sendMessage()" disabled>
+            Enviar
+          </button>
+        </div>
+        <button id="connectButton" onclick="connect()">
+          Conectar (Forzando Polling)
+        </button>
+        <button
+          id="disconnectButton"
+          onclick="disconnect()"
+          disabled
+          style="display: none"
+        >
+          Desconectar
+        </button>
+      </div>
+    </div>
+
+    <!-- Librerías desde CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1.6.1/dist/sockjs.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@stomp/stompjs@7.0.0/bundles/stomp.umd.min.js"></script>
+
+    <script>
+      let stompClient = null;
+      let connected = false;
+      let currentTransport = null;
+
+      /**
+       * Conecta forzando el uso de HTTP Long Polling.
+       *
+       * SockJS permite especificar qué transportes están permitidos.
+       * En esta demo, deshabilitamos 'websocket' y 'xhr-streaming' para forzar polling puro.
+       *
+       * Transportes de SockJS en orden de preferencia:
+       * 1. websocket (deshabilitado en esta demo)
+       * 2. xhr-streaming (deshabilitado en esta demo)
+       * 3. xhr-polling (HTTP long polling) ← ÚNICO transporte disponible
+       */
+      function connect() {
+        showSystemMessage("Conectando usando SOLO HTTP Long Polling...");
+
+        stompClient = new StompJs.Client({
+          webSocketFactory: function () {
+            // SockJS con SOLO xhr-polling habilitado
+            // Al excluir 'websocket' y 'xhr-streaming', SockJS SOLO puede usar xhr-polling
+            return new SockJS("http://localhost:8080/ws-stomp-sockjs", null, {
+              // Lista blanca de transportes: SOLO xhr-polling
+              // Esto fuerza el uso de polling puro sin streaming
+              transports: ["xhr-polling"],
+
+              // Configuración adicional para demostración
+              debug: true, // Ver logs de SockJS en consola del navegador
+              timeout: 5000, // Timeout para cada petición de polling
+            });
+          },
+
+          debug: function (str) {
+            console.log("STOMP: " + str);
+          },
+
+          reconnectDelay: 5000,
+          heartbeatIncoming: 4000,
+          heartbeatOutgoing: 4000,
+
+          onConnect: function (frame) {
+            console.log("Conectado usando SOLO xhr-polling");
+            connected = true;
+
+            detectTransport();
+            updateConnectionStatus(true);
+
+            // Suscribe al topic
+            stompClient.subscribe("/topic/messages", function (message) {
+              const response = JSON.parse(message.body);
+              showMessage(response.content, "Eliza");
+            });
+
+            // Envía saludo
+            stompClient.publish({
+              destination: "/app/greet",
+              body: JSON.stringify({}),
+            });
+
+            showSystemMessage(
+              `Conectado exitosamente usando: ${
+                currentTransport || "Detectando..."
+              }`
+            );
+            showSystemMessage(
+              "¡El fallback funciona! Estás usando HTTP Polling en lugar de WebSocket."
+            );
+          },
+
+          onStompError: function (frame) {
+            console.error("❌ Error STOMP:", frame);
+            updateConnectionStatus(false);
+            showSystemMessage("❌ Error de conexión. Intenta de nuevo.");
+          },
+
+          onWebSocketClose: function (event) {
+            console.log("🔌 Conexión cerrada");
+            connected = false;
+            currentTransport = null;
+            updateConnectionStatus(false);
+          },
+
+          onWebSocketError: function (event) {
+            console.error("❌ Error de transporte:", event);
+            updateConnectionStatus(false);
+            showSystemMessage("❌ Error de transporte.");
+          },
+        });
+
+        stompClient.activate();
+      }
+
+      /**
+       * Detecta el transporte usado por SockJS.
+       */
+      function detectTransport() {
+        setTimeout(() => {
+          try {
+            const ws = stompClient._stompHandler._webSocket;
+
+            if (ws && ws._transport) {
+              // Obtener el nombre del transporte correctamente
+              const transport = ws._transport;
+              if (typeof transport === "string") {
+                currentTransport = transport;
+              } else if (transport && transport.transportName) {
+                currentTransport = transport.transportName;
+              } else if (ws.transport) {
+                currentTransport = ws.transport;
+              } else {
+                // Revisar la URL para determinar el transporte
+                const url = ws._transport_url || ws.url || "";
+                if (url.includes("/xhr_streaming")) {
+                  currentTransport = "xhr-streaming";
+                } else if (url.includes("/xhr")) {
+                  currentTransport = "xhr-polling";
+                } else {
+                  currentTransport = "xhr-polling (forced)";
+                }
+              }
+
+              console.log("Transporte detectado:", currentTransport);
+
+              // Muestra información detallada sobre el transporte
+              if (
+                currentTransport.includes("polling") ||
+                currentTransport.includes("xhr")
+              ) {
+                showSystemMessage(
+                  `¡ÉXITO! Usando: ${currentTransport}. ` +
+                    "HTTP Long Polling realiza peticiones HTTP repetidas. " +
+                    "Es menos eficiente que WebSocket pero funciona en cualquier red."
+                );
+              } else if (currentTransport.includes("streaming")) {
+                showSystemMessage(
+                  `Detectado: ${currentTransport}. ` +
+                    "Se esperaba xhr-polling pero se está usando streaming. " +
+                    "Esto puede ocurrir si el servidor lo prefiere."
+                );
+              }
+            } else {
+              currentTransport = "xhr-polling (forced)";
+            }
+
+            updateConnectionStatus(true);
+          } catch (error) {
+            currentTransport = "xhr-polling (forced)";
+            updateConnectionStatus(true);
+          }
+        }, 1000);
+      }
+
+      function disconnect() {
+        if (stompClient !== null && connected) {
+          stompClient.deactivate();
+          connected = false;
+          currentTransport = null;
+          updateConnectionStatus(false);
+          showSystemMessage("Desconectado del servidor.");
+        }
+      }
+
+      function sendMessage() {
+        const messageInput = document.getElementById("messageInput");
+        const messageContent = messageInput.value.trim();
+
+        if (messageContent && stompClient !== null && connected) {
+          const chatMessage = {
+            content: messageContent,
+            sender: "User",
+          };
+
+          stompClient.publish({
+            destination: "/app/chat",
+            body: JSON.stringify(chatMessage),
+          });
+
+          showMessage(messageContent, "User", "user");
+          messageInput.value = "";
+          messageInput.focus();
+        }
+      }
+
+      function showMessage(content, sender, type = "eliza") {
+        const chatArea = document.getElementById("chatArea");
+        const messageDiv = document.createElement("div");
+
+        if (type === "user") {
+          messageDiv.className = "message user";
+          messageDiv.innerHTML = `
+            <div class="message-sender">${sender}</div>
+            <div class="message-content">${escapeHtml(content)}</div>
+          `;
+        } else {
+          messageDiv.className = "message eliza";
+          messageDiv.innerHTML = `
+            <div class="message-sender">${sender}</div>
+            <div class="message-content">${escapeHtml(content)}</div>
+          `;
+        }
+
+        chatArea.appendChild(messageDiv);
+        chatArea.scrollTop = chatArea.scrollHeight;
+      }
+
+      function showSystemMessage(content) {
+        const chatArea = document.getElementById("chatArea");
+        const messageDiv = document.createElement("div");
+        messageDiv.className = "message system";
+        messageDiv.innerHTML = `<div class="message-content">${content}</div>`;
+        chatArea.appendChild(messageDiv);
+        chatArea.scrollTop = chatArea.scrollHeight;
+      }
+
+      function updateConnectionStatus(isConnected) {
+        const statusDot = document.getElementById("statusDot");
+        const statusText = document.getElementById("statusText");
+        const connectButton = document.getElementById("connectButton");
+        const disconnectButton = document.getElementById("disconnectButton");
+        const transportInfo = document.getElementById("transportInfo");
+        const transportTypeSpan = document.getElementById("transportType");
+        const chatInputGroup = document.getElementById("chatInputGroup");
+        const messageInput = document.getElementById("messageInput");
+        const sendButton = document.getElementById("sendButton");
+
+        if (isConnected) {
+          statusDot.classList.add("connected");
+          statusText.textContent = "Conectado (Polling)";
+          connectButton.style.display = "none";
+          disconnectButton.style.display = "block";
+          disconnectButton.disabled = false;
+
+          // Habilitar chat
+          chatInputGroup.style.display = "flex";
+          messageInput.disabled = false;
+          sendButton.disabled = false;
+          messageInput.focus();
+
+          if (currentTransport) {
+            transportTypeSpan.textContent = currentTransport;
+            transportInfo.style.display = "block";
+          }
+        } else {
+          statusDot.classList.remove("connected");
+          statusText.textContent = "Desconectado";
+          connectButton.style.display = "block";
+          disconnectButton.style.display = "none";
+          disconnectButton.disabled = true;
+
+          // Deshabilitar chat
+          chatInputGroup.style.display = "none";
+          messageInput.disabled = true;
+          sendButton.disabled = true;
+
+          transportInfo.style.display = "none";
+          transportTypeSpan.textContent = "N/A";
+        }
+      }
+
+      function escapeHtml(text) {
+        const map = {
+          "&": "&amp;",
+          "<": "&lt;",
+          ">": "&gt;",
+          '"': "&quot;",
+          "'": "&#039;",
+        };
+        return text.replace(/[&<>"']/g, (m) => map[m]);
+      }
+
+      window.addEventListener("beforeunload", function () {
+        if (connected) {
+          disconnect();
+        }
+      });
+    </script>
+  </body>
+</html>

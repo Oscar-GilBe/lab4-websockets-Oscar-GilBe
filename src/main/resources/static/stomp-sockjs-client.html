@@ -1,0 +1,732 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Eliza STOMP + SockJS Client</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        background: linear-gradient(135deg, #e96443 0%, #904e95 100%);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        min-height: 100vh;
+        padding: 20px;
+      }
+
+      .container {
+        background: white;
+        border-radius: 20px;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        width: 100%;
+        max-width: 900px;
+        display: flex;
+        flex-direction: column;
+        height: 90vh;
+        max-height: 800px;
+      }
+
+      .header {
+        background: linear-gradient(135deg, #e96443 0%, #904e95 100%);
+        color: white;
+        padding: 20px;
+        border-radius: 20px 20px 0 0;
+        text-align: center;
+      }
+
+      .header h1 {
+        font-size: 24px;
+        margin-bottom: 5px;
+      }
+
+      .header p {
+        font-size: 14px;
+        opacity: 0.9;
+      }
+
+      .connection-status {
+        padding: 10px 20px;
+        background: #f8f9fa;
+        border-bottom: 1px solid #dee2e6;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 10px;
+      }
+
+      .status-row {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+        flex-wrap: wrap;
+      }
+
+      .status-indicator {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 14px;
+      }
+
+      .transport-info {
+        font-size: 12px;
+        color: #6c757d;
+        background: #fff3cd;
+        padding: 5px 10px;
+        border-radius: 12px;
+        border: 1px solid #ffc107;
+        font-family: monospace;
+      }
+
+      .transport-info strong {
+        color: #856404;
+      }
+
+      .session-info {
+        font-size: 12px;
+        color: #6c757d;
+        background: #e9ecef;
+        padding: 5px 10px;
+        border-radius: 12px;
+        font-family: monospace;
+      }
+
+      .session-info strong {
+        color: #495057;
+      }
+
+      .status-dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background: #dc3545;
+      }
+
+      .status-dot.connected {
+        background: #28a745;
+        animation: pulse 2s infinite;
+      }
+
+      @keyframes pulse {
+        0%,
+        100% {
+          opacity: 1;
+        }
+        50% {
+          opacity: 0.5;
+        }
+      }
+
+      .info-banner {
+        background: #d1ecf1;
+        border: 1px solid #bee5eb;
+        color: #0c5460;
+        padding: 12px 20px;
+        font-size: 13px;
+        line-height: 1.5;
+      }
+
+      .info-banner strong {
+        color: #0c5460;
+        font-weight: bold;
+      }
+
+      .chat-area {
+        flex: 1;
+        overflow-y: auto;
+        padding: 20px;
+        background: #f8f9fa;
+      }
+
+      .message {
+        margin-bottom: 15px;
+        display: flex;
+        flex-direction: column;
+      }
+
+      .message.eliza {
+        align-items: flex-start;
+      }
+
+      .message.user {
+        align-items: flex-end;
+      }
+
+      .message-sender {
+        font-size: 12px;
+        font-weight: bold;
+        margin-bottom: 5px;
+        color: #6c757d;
+      }
+
+      .message-content {
+        max-width: 70%;
+        padding: 12px 16px;
+        border-radius: 18px;
+        word-wrap: break-word;
+        line-height: 1.4;
+      }
+
+      .message-meta {
+        font-size: 11px;
+        color: #6c757d;
+        margin-top: 5px;
+        font-style: italic;
+      }
+
+      .message.eliza .message-content {
+        background: white;
+        color: #333;
+        border: 1px solid #dee2e6;
+      }
+
+      .message.user .message-content {
+        background: linear-gradient(135deg, #e96443 0%, #904e95 100%);
+        color: white;
+      }
+
+      .message.system .message-content {
+        background: #fff3cd;
+        color: #856404;
+        border: 1px solid #ffc107;
+        max-width: 100%;
+        text-align: center;
+        font-size: 14px;
+      }
+
+      .input-area {
+        padding: 20px;
+        background: white;
+        border-radius: 0 0 20px 20px;
+        border-top: 1px solid #dee2e6;
+      }
+
+      .input-group {
+        display: flex;
+        gap: 10px;
+      }
+
+      #messageInput {
+        flex: 1;
+        padding: 12px 16px;
+        border: 2px solid #dee2e6;
+        border-radius: 25px;
+        font-size: 14px;
+        outline: none;
+        transition: border-color 0.3s;
+      }
+
+      #messageInput:focus {
+        border-color: #e96443;
+      }
+
+      button {
+        padding: 12px 24px;
+        border: none;
+        border-radius: 25px;
+        font-size: 14px;
+        font-weight: bold;
+        cursor: pointer;
+        transition: all 0.3s;
+        outline: none;
+      }
+
+      #sendButton {
+        background: linear-gradient(135deg, #e96443 0%, #904e95 100%);
+        color: white;
+      }
+
+      #sendButton:hover:not(:disabled) {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(233, 100, 67, 0.4);
+      }
+
+      #sendButton:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+
+      #connectButton {
+        background: #28a745;
+        color: white;
+      }
+
+      #connectButton:hover {
+        background: #218838;
+      }
+
+      #disconnectButton {
+        background: #dc3545;
+        color: white;
+      }
+
+      #disconnectButton:hover {
+        background: #c82333;
+      }
+
+      .button-group {
+        display: flex;
+        gap: 10px;
+      }
+
+      /* Scrollbar personalizado */
+      .chat-area::-webkit-scrollbar {
+        width: 8px;
+      }
+
+      .chat-area::-webkit-scrollbar-track {
+        background: #f1f1f1;
+      }
+
+      .chat-area::-webkit-scrollbar-thumb {
+        background: #888;
+        border-radius: 4px;
+      }
+
+      .chat-area::-webkit-scrollbar-thumb:hover {
+        background: #555;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="header">
+        <h1>Eliza - (STOMP + SockJS Client)</h1>
+        <p>
+          Cliente con fallback automático: WebSocket → HTTP Streaming → HTTP
+          Polling
+        </p>
+      </div>
+
+      <div class="info-banner">
+        <strong>🔄 Fallback Automático:</strong> Este cliente usa SockJS que
+        intentará WebSocket primero. Si WebSocket no está disponible (bloqueado
+        por proxy/firewall), automáticamente usará HTTP Streaming, o en su defecto, HTTP Long Polling como
+        alternativa. Observa el campo "Transport" para ver qué método se está
+        usando.
+      </div>
+
+      <div class="connection-status">
+        <div class="status-row">
+          <div class="status-indicator">
+            <div class="status-dot" id="statusDot"></div>
+            <span id="statusText">Desconectado</span>
+          </div>
+          <div class="transport-info" id="transportInfo" style="display: none">
+            <strong>Transport:</strong> <span id="transportType">N/A</span>
+          </div>
+          <div class="session-info" id="sessionInfo" style="display: none">
+            <strong>Session:</strong> <span id="sessionId">N/A</span>
+          </div>
+        </div>
+        <div class="button-group">
+          <button id="connectButton" onclick="connect()">Conectar</button>
+          <button id="disconnectButton" onclick="disconnect()" disabled>
+            Desconectar
+          </button>
+        </div>
+      </div>
+
+      <div class="chat-area" id="chatArea">
+        <div class="message system">
+          <div class="message-content">
+            Bienvenido al cliente STOMP + SockJS de Eliza. Haz clic en
+            "Conectar" para comenzar. SockJS se encargará automáticamente de
+            elegir el mejor transporte disponible.
+          </div>
+        </div>
+      </div>
+
+      <div class="input-area">
+        <div class="input-group">
+          <input
+            type="text"
+            id="messageInput"
+            placeholder="Escribe tu mensaje aquí..."
+            disabled
+            onkeypress="if(event.key === 'Enter') sendMessage()"
+          />
+          <button id="sendButton" onclick="sendMessage()" disabled>
+            Enviar
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Librerías desde CDN -->
+    <!-- SockJS: Proporciona fallback automático cuando WebSocket no está disponible -->
+    <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1.6.1/dist/sockjs.min.js"></script>
+    <!-- STOMP.js: Cliente STOMP que funciona sobre WebSocket o SockJS -->
+    <script src="https://cdn.jsdelivr.net/npm/@stomp/stompjs@7.0.0/bundles/stomp.umd.min.js"></script>
+
+    <script>
+      // Variables globales para la conexión STOMP
+      let stompClient = null;
+      let connected = false;
+      let currentSessionId = null;
+      let currentTransport = null;
+
+      /**
+       * Establece la conexión STOMP usando SockJS como capa de transporte.
+       *
+       * SockJS es una librería JavaScript que proporciona una API similar a WebSocket
+       * pero con mecanismos de fallback cuando WebSocket no está disponible.
+       *
+       * Orden de fallback de SockJS:
+       * 1. WebSocket - Protocolo nativo, bidireccional, baja latencia (preferido)
+       * 2. HTTP Streaming - Mantiene una conexión HTTP abierta para recibir datos
+       * 3. HTTP Long Polling - Realiza peticiones HTTP repetidas (funciona en cualquier red)
+       *
+       * Documentación:
+       * - SockJS: https://docs.spring.io/spring-framework/reference/web/websocket/fallback.html
+       * - STOMP: https://docs.spring.io/spring-framework/reference/web/websocket/stomp.html
+       */
+      function connect() {
+        // Crea el cliente STOMP configurado para usar SockJS
+        stompClient = new StompJs.Client({
+          // webSocketFactory: Función que crea la conexión de transporte
+          // En lugar de conectar directamente a WebSocket, usamos SockJS
+          // SockJS detectará automáticamente el mejor transporte disponible
+          webSocketFactory: function () {
+            // SockJS se conecta al endpoint /ws-stomp-sockjs configurado en el servidor
+            // Este endpoint tiene habilitado .withSockJS() en StompWebSocketConfig
+            return new SockJS("http://localhost:8080/ws-stomp-sockjs");
+          },
+
+          // Desactiva logs de debug (descomentar para debugging)
+          debug: function (str) {
+            // console.log('STOMP: ' + str);
+          },
+
+          // Configuración de reconexión automática
+          reconnectDelay: 5000,
+          heartbeatIncoming: 4000,
+          heartbeatOutgoing: 4000,
+
+          // Callback cuando se establece la conexión
+          onConnect: function (frame) {
+            console.log("Conectado: " + frame);
+            connected = true;
+
+            // Detecta qué transporte está usando SockJS
+            detectTransport();
+
+            updateConnectionStatus(true);
+
+            // Se suscribe al topic donde el servidor enviará las respuestas
+            stompClient.subscribe("/topic/messages", function (message) {
+              const response = JSON.parse(message.body);
+
+              // Captura el session ID del primer mensaje recibido
+              if (!currentSessionId && response.originalSessionId) {
+                currentSessionId = response.originalSessionId;
+                console.log("Session ID capturado:", currentSessionId);
+                updateConnectionStatus(true);
+              }
+
+              showMessage(response);
+            });
+
+            // Envía un mensaje de saludo inicial
+            stompClient.publish({
+              destination: "/app/greet",
+              body: JSON.stringify({}),
+            });
+          },
+
+          // Callback en caso de error STOMP
+          onStompError: function (frame) {
+            console.error("Error de STOMP: " + frame.headers["message"]);
+            console.error("Detalles: " + frame.body);
+            updateConnectionStatus(false);
+            showSystemMessage(
+              "Error de conexión STOMP. Por favor, intenta de nuevo."
+            );
+          },
+
+          // Callback cuando se pierde la conexión
+          onWebSocketClose: function (event) {
+            console.log("🔌 Conexión cerrada:", event);
+            connected = false;
+            currentTransport = null;
+            updateConnectionStatus(false);
+          },
+
+          // Callback en caso de error de transporte
+          onWebSocketError: function (event) {
+            console.error("Error de transporte:", event);
+            updateConnectionStatus(false);
+            showSystemMessage(
+              "Error de transporte. Verifica que el servidor esté ejecutándose."
+            );
+          },
+        });
+
+        // Activa la conexión
+        stompClient.activate();
+      }
+
+      /**
+       * Detecta qué protocolo de transporte está usando SockJS.
+       *
+       * SockJS puede usar diferentes transportes según la disponibilidad:
+       * - websocket: Protocolo WebSocket nativo (más eficiente)
+       * - xhr-streaming: HTTP streaming con XMLHttpRequest
+       * - eventsource: Server-Sent Events (SSE)
+       * - xhr-polling: HTTP long polling (máxima compatibilidad)
+       */
+      function detectTransport() {
+        // SockJS expone información sobre el transporte usado
+        // Accedemos al WebSocket subyacente del cliente STOMP
+        setTimeout(() => {
+          try {
+            // El WebSocket de STOMP puede ser un objeto SockJS
+            const ws = stompClient._stompHandler._webSocket;
+
+            if (ws && ws._transport) {
+              // SockJS expone el nombre del transporte en _transport
+              // Necesitamos obtener el string del transporte, no el objeto
+              const transport = ws._transport;
+              if (typeof transport === "string") {
+                currentTransport = transport;
+              } else if (transport && transport.transportName) {
+                currentTransport = transport.transportName;
+              } else if (ws.transport) {
+                currentTransport = ws.transport;
+              } else {
+                // Intenta obtener el protocolo desde la URL
+                const url = ws._transport_url || ws.url || "";
+                if (url.includes("/websocket")) {
+                  currentTransport = "websocket";
+                } else if (url.includes("/xhr_streaming")) {
+                  currentTransport = "xhr-streaming";
+                } else if (url.includes("/xhr")) {
+                  currentTransport = "xhr-polling";
+                } else {
+                  currentTransport = "sockjs (unknown)";
+                }
+              }
+              console.log("Transporte detectado:", currentTransport);
+            } else if (ws && ws.constructor.name === "WebSocket") {
+              // Si es WebSocket nativo
+              currentTransport = "websocket";
+              console.log("Transporte: WebSocket nativo");
+            } else {
+              // Último intento: revisar la URL del websocket
+              currentTransport = "sockjs (detecting...)";
+              console.log("No se pudo detectar el transporte específico");
+            }
+
+            updateConnectionStatus(true);
+          } catch (error) {
+            console.log("No se pudo detectar el transporte:", error);
+            currentTransport = "sockjs (auto)";
+            updateConnectionStatus(true);
+          }
+        }, 1000);
+      }
+
+      /**
+       * Desconecta la sesión STOMP del servidor.
+       * Envía un mensaje "bye" antes de desconectar.
+       */
+      function disconnect() {
+        if (stompClient !== null && connected) {
+          try {
+            const byeMessage = {
+              content: "bye",
+              sender: "User",
+            };
+
+            stompClient.publish({
+              destination: "/app/chat",
+              body: JSON.stringify(byeMessage),
+            });
+
+            console.log("Mensaje 'bye' enviado");
+
+            // Espera un momento antes de desconectar
+            setTimeout(() => {
+              stompClient.deactivate();
+              connected = false;
+              currentSessionId = null;
+              currentTransport = null;
+              updateConnectionStatus(false);
+              showSystemMessage("🔌 Desconectado del servidor.");
+              console.log("Desconectado");
+            }, 500);
+          } catch (error) {
+            console.error("Error al enviar mensaje de despedida:", error);
+            // Desconectar de todas formas
+            stompClient.deactivate();
+            connected = false;
+            currentSessionId = null;
+            currentTransport = null;
+            updateConnectionStatus(false);
+          }
+        }
+      }
+
+      /**
+       * Envía un mensaje al servidor a través de STOMP.
+       */
+      function sendMessage() {
+        const messageInput = document.getElementById("messageInput");
+        const messageContent = messageInput.value.trim();
+
+        if (messageContent && stompClient !== null && connected) {
+          const chatMessage = {
+            content: messageContent,
+            sender: "User",
+          };
+
+          stompClient.publish({
+            destination: "/app/chat",
+            body: JSON.stringify(chatMessage),
+          });
+
+          showMessage({
+            content: messageContent,
+            sender: "User",
+            type: "CHAT",
+          });
+
+          messageInput.value = "";
+          messageInput.focus();
+        }
+      }
+
+      /**
+       * Muestra un mensaje en el área de chat.
+       */
+      function showMessage(message) {
+        const chatArea = document.getElementById("chatArea");
+        const messageDiv = document.createElement("div");
+
+        if (message.type === "SYSTEM") {
+          messageDiv.className = "message system";
+        } else if (message.sender === "User") {
+          messageDiv.className = "message user";
+        } else {
+          messageDiv.className = "message eliza";
+        }
+
+        let messageHTML = "";
+
+        if (message.type !== "SYSTEM") {
+          messageHTML += `<div class="message-sender">${message.sender}</div>`;
+        }
+
+        messageHTML += `<div class="message-content">${escapeHtml(
+          message.content
+        )}</div>`;
+
+        if (
+          message.originalSessionId &&
+          message.originalSessionId !== currentSessionId
+        ) {
+          messageHTML += `<div class="message-meta">📢 Mensaje de otro cliente (Session: ${message.originalSessionId.substring(
+            0,
+            8
+          )}...)</div>`;
+        } else if (message.originalSessionId && message.sender === "Eliza") {
+          messageHTML += `<div class="message-meta">✅ Respuesta para tu sesión</div>`;
+        }
+
+        messageDiv.innerHTML = messageHTML;
+        chatArea.appendChild(messageDiv);
+        chatArea.scrollTop = chatArea.scrollHeight;
+      }
+
+      /**
+       * Muestra un mensaje del sistema.
+       */
+      function showSystemMessage(content) {
+        showMessage({
+          content: content,
+          sender: "System",
+          type: "SYSTEM",
+        });
+      }
+
+      /**
+       * Actualiza el estado visual de la conexión.
+       */
+      function updateConnectionStatus(isConnected) {
+        const statusDot = document.getElementById("statusDot");
+        const statusText = document.getElementById("statusText");
+        const connectButton = document.getElementById("connectButton");
+        const disconnectButton = document.getElementById("disconnectButton");
+        const messageInput = document.getElementById("messageInput");
+        const sendButton = document.getElementById("sendButton");
+        const sessionInfo = document.getElementById("sessionInfo");
+        const sessionIdSpan = document.getElementById("sessionId");
+        const transportInfo = document.getElementById("transportInfo");
+        const transportTypeSpan = document.getElementById("transportType");
+
+        if (isConnected) {
+          statusDot.classList.add("connected");
+          statusText.textContent = "Conectado";
+          connectButton.disabled = true;
+          disconnectButton.disabled = false;
+          messageInput.disabled = false;
+          sendButton.disabled = false;
+          messageInput.focus();
+
+          // Muestra el session ID
+          if (currentSessionId) {
+            sessionIdSpan.textContent = currentSessionId;
+            sessionInfo.style.display = "block";
+          }
+
+          // Muestra el tipo de transporte
+          if (currentTransport) {
+            transportTypeSpan.textContent = currentTransport;
+            transportInfo.style.display = "block";
+          }
+        } else {
+          statusDot.classList.remove("connected");
+          statusText.textContent = "Desconectado";
+          connectButton.disabled = false;
+          disconnectButton.disabled = true;
+          messageInput.disabled = true;
+          sendButton.disabled = true;
+
+          sessionInfo.style.display = "none";
+          sessionIdSpan.textContent = "N/A";
+          transportInfo.style.display = "none";
+          transportTypeSpan.textContent = "N/A";
+        }
+      }
+
+      /**
+       * Escapa caracteres HTML para prevenir XSS.
+       */
+      function escapeHtml(text) {
+        const map = {
+          "&": "&amp;",
+          "<": "&lt;",
+          ">": "&gt;",
+          '"': "&quot;",
+          "'": "&#039;",
+        };
+        return text.replace(/[&<>"']/g, (m) => map[m]);
+      }
+
+      // Desconecta automáticamente cuando se cierra la página
+      window.addEventListener("beforeunload", function () {
+        if (connected) {
+          disconnect();
+        }
+      });
+    </script>
+  </body>
+</html>
