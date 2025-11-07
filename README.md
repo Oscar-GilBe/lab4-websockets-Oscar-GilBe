@@ -55,14 +55,14 @@ See `docs/GUIDE.md` for detailed steps:
 
 Be the first to complete **at least two** of the following tasks to earn a bonus:
 
-### 1. **STOMP!**
+### 1. **STOMP!** ✅
 
 - **Description**: Support *STOMP* in the server side and create a small client that uses it.
 - **Implementation**: Implement STOMP protocol support for WebSocket communication and create a client that demonstrates STOMP messaging.
 - **Goal**: Demonstrate understanding of STOMP protocol and message-oriented communication.
 - **Benefit**: Shows mastery of advanced WebSocket protocols and messaging patterns.
 
-### 2. **Sock from WebSocket**
+### 2. **Sock from WebSocket** ✅
 
 - **Description**: Support *SockJS* in the server side and show that polling can be used as transport instead of *WebSocket* when needed.
 - **Implementation**: Add SockJS fallback support and demonstrate polling transport when WebSocket is not available.
